@@ -1,0 +1,371 @@
+{
+  "name": "UEBA scan  & auto reaction",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ueba.devhol.surf/scan",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"window_minutes\": 15\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -272,
+        64
+      ],
+      "id": "74274650-a870-413a-82c4-f2bb25d2e83f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "="
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5ef4b706-370b-4a6f-a7cb-26c6724c2644",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/telematics-event",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -688,
+        64
+      ],
+      "id": "55e48480-e5d1-46f6-93d4-3462e21b6191",
+      "name": "Webhook",
+      "webhookId": "40bc776d-9bbf-48e6-aba9-745fef1863bb"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        64
+      ],
+      "id": "adb0dc85-7224-46e3-99e8-a5afba28af9d",
+      "name": "Wait",
+      "webhookId": "2860cc13-71c3-4749-ae35-ea3c5b1e769d"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fb8be32a-f46a-4640-80b6-2389e9935998",
+              "leftValue": "={{ $json[\"alerts_count\"] }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -64,
+        64
+      ],
+      "id": "ada4e097-f7c0-4c3b-af18-dca7cb55590c",
+      "name": "checking alert"
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $json;\n\nreturn [{\n  json: {\n    agent_name: alert.agent_name,\n    anomaly_type: alert.anomaly_type,\n    severity: alert.severity,\n    confidence: alert.confidence || (\n      alert.severity === \"high\" ? 0.9 :\n      alert.severity === \"medium\" ? 0.7 : 0.5\n    ),\n    timestamp: alert.timestamp,\n    action_required:\n      alert.severity === \"high\" ? \"contain\" :\n      alert.severity === \"medium\" ? \"monitor\" :\n      \"log\"\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        48
+      ],
+      "id": "1c92dfc9-1b09-423f-9f59-7210cb04ff01",
+      "name": "Normalize UEBA Alert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6837625c-23b1-4f69-aaa5-8c050c9efd6f",
+              "leftValue": "={{ $json.action_required }}",
+              "rightValue": "contain",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        640,
+        48
+      ],
+      "id": "01b282b8-1aef-430d-bc60-9941d4ed98d9",
+      "name": "Select UEBA Reaction(Hard)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3cd0009d-d900-4dee-9f97-8af41ddc00f5",
+              "leftValue": "={{ $json.action_required }}",
+              "rightValue": "monitor",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        16
+      ],
+      "id": "b8055813-7116-4374-8981-ec29e5545b86",
+      "name": "Select UEBA Reaction (medium)"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        176
+      ],
+      "id": "3dfd252d-a458-4ba1-874c-9558db4a6230",
+      "name": "UEBA Security Alert"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1024,
+        208
+      ],
+      "id": "d1251cda-5dbb-48ca-94ab-c43f284dde7e",
+      "name": "UEBA - Increase Monitoring"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        208
+      ],
+      "id": "8748ba16-f24d-4766-8d0a-33bc7116a271",
+      "name": "UEBA - Audit only"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "checking alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Normalize UEBA Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "checking alert": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize UEBA Alert": {
+      "main": [
+        [
+          {
+            "node": "Select UEBA Reaction(Hard)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select UEBA Reaction(Hard)": {
+      "main": [
+        [
+          {
+            "node": "UEBA Security Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Select UEBA Reaction (medium)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UEBA Security Alert": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select UEBA Reaction (medium)": {
+      "main": [
+        [
+          {
+            "node": "UEBA - Increase Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "UEBA - Audit only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UEBA - Increase Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UEBA - Audit only": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9bdb37be-36b0-48dd-b097-88ed51f82f36",
+  "meta": {
+    "instanceId": "4269bfb5e1358338ab82ccbe985768ee592c52535a00f3c8d3fe686feb18b84d"
+  },
+  "id": "Vu0aRy28RiNo4iYBdiypz",
+  "tags": []
+}
